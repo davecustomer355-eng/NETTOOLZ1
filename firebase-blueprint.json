@@ -1,0 +1,92 @@
+{
+  "entities": {
+    "Product": {
+      "title": "Product",
+      "description": "Digital asset available for purchase",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "price": { "type": "number" },
+        "category": { "type": "string" },
+        "stock": { "type": "number" },
+        "rating": { "type": "number" },
+        "image": { "type": "string" },
+        "features": { "type": "array", "items": { "type": "string" } },
+        "isVisible": { "type": "boolean" },
+        "secretContent": { "type": "string" }
+      },
+      "required": ["id", "name", "price", "category", "stock", "secretContent"]
+    },
+    "User": {
+      "title": "User",
+      "description": "Customer account data",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "email": { "type": "string" },
+        "password": { "type": "string" },
+        "balance": { "type": "number" },
+        "orders": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "productId": { "type": "string" },
+              "productName": { "type": "string" },
+              "content": { "type": "string" },
+              "price": { "type": "number" },
+              "timestamp": { "type": "number" }
+            }
+          }
+        }
+      },
+      "required": ["id", "email", "balance"]
+    },
+    "SiteSettings": {
+      "title": "SiteSettings",
+      "description": "Global store configuration",
+      "type": "object",
+      "properties": {
+        "currency": { "type": "string" },
+        "currencySymbol": { "type": "string" },
+        "storeName": { "type": "string" },
+        "logoUrl": { "type": "string" },
+        "paymentMethods": { "type": "array" },
+        "usdtToNairaRate": { "type": "number" },
+        "categories": { "type": "array" }
+      }
+    },
+    "AdminUser": {
+      "title": "AdminUser",
+      "description": "Administrative account",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "username": { "type": "string" },
+        "role": { "type": "string", "enum": ["super", "editor"] }
+      },
+      "required": ["id", "username", "role"]
+    }
+  },
+  "firestore": {
+    "products": {
+      "schema": "Product",
+      "description": "Collection of digital products"
+    },
+    "users": {
+      "schema": "User",
+      "description": "Collection of user accounts"
+    },
+    "settings": {
+      "schema": "SiteSettings",
+      "description": "Global configuration documents"
+    },
+    "admins": {
+      "schema": "AdminUser",
+      "description": "Collection of admin users"
+    }
+  }
+}
