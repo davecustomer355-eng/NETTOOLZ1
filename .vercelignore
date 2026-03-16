@@ -1,0 +1,6 @@
+# Exclude files and directories from Vercel deployments
+node_modules/
+.gitignore
+.git/
+*.log
+*.env
