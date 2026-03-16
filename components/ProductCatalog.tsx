@@ -28,7 +28,7 @@ const ProductCatalog: React.FC<ProductCatalogProps> = ({
   onSearchChange
 }) => {
   const [sortBy, setSortBy] = useState<SortOption>('newest');
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
 
   const filteredAndSortedProducts = useMemo(() => {
     let result = products.filter(p => {
@@ -61,10 +61,10 @@ const ProductCatalog: React.FC<ProductCatalogProps> = ({
   return (
     <div className="flex flex-col gap-8">
       {/* Catalog Header */}
-      <header className="relative overflow-hidden bg-slate-900 rounded-3xl p-8 md:p-12 text-white shadow-2xl">
-        <div className="absolute top-0 right-0 w-1/2 h-full opacity-10 pointer-events-none">
+      <header className="relative overflow-hidden bg-gradient-to-br from-skyblue-600 via-skyblue-500 to-skyblue-400 rounded-3xl p-8 md:p-12 text-white shadow-2xl shadow-skyblue-200">
+        <div className="absolute top-0 right-0 w-1/2 h-full opacity-20 pointer-events-none">
           <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
-            <path fill="#4CABEB" d="M44.7,-76.4C58.1,-69.2,69.2,-58.1,76.4,-44.7C83.6,-31.3,86.9,-15.7,86.9,0C86.9,15.7,83.6,31.3,76.4,44.7C69.2,58.1,58.1,69.2,44.7,76.4C31.3,83.6,15.7,86.9,0,86.9C-15.7,86.9,-31.3,83.6,-44.7,76.4C-58.1,69.2,-69.2,58.1,-76.4,44.7C-83.6,31.3,-86.9,15.7,-86.9,0C-86.9,-15.7,-83.6,-31.3,-76.4,-44.7C-69.2,-58.1,-58.1,-69.2,-44.7,-76.4C-31.3,-83.6,-15.7,-86.9,0,-86.9C15.7,-86.9,31.3,-83.6,44.7,-76.4Z" transform="translate(100 100)" />
+            <path fill="white" d="M44.7,-76.4C58.1,-69.2,69.2,-58.1,76.4,-44.7C83.6,-31.3,86.9,-15.7,86.9,0C86.9,15.7,83.6,31.3,76.4,44.7C69.2,58.1,58.1,69.2,44.7,76.4C31.3,83.6,15.7,86.9,0,86.9C-15.7,86.9,-31.3,83.6,-44.7,76.4C-58.1,69.2,-69.2,58.1,-76.4,44.7C-83.6,31.3,-86.9,15.7,-86.9,0C-86.9,-15.7,-83.6,-31.3,-76.4,-44.7C-69.2,-58.1,-58.1,-69.2,-44.7,-76.4C-31.3,-83.6,-15.7,-86.9,0,-86.9C15.7,-86.9,31.3,-83.6,44.7,-76.4Z" transform="translate(100 100)" />
           </svg>
         </div>
         
@@ -74,13 +74,13 @@ const ProductCatalog: React.FC<ProductCatalogProps> = ({
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
           >
-            <span className="inline-block px-3 py-1 bg-sky-500/20 text-sky-400 text-[10px] font-black uppercase tracking-[0.2em] rounded-full mb-4 border border-sky-500/30">
+            <span className="inline-block px-3 py-1 bg-white/20 text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-full mb-4 border border-white/30 backdrop-blur-sm">
               Premium Digital Assets
             </span>
             <h1 className="text-4xl md:text-5xl font-black mb-6 tracking-tight leading-none">
-              Digital Tools & <span className="text-sky-400">Software Catalog</span>
+              Digital Tools & <span className="text-skyblue-100">Software Catalog</span>
             </h1>
-            <p className="text-slate-400 text-lg mb-8 leading-relaxed max-w-lg">
+            <p className="text-skyblue-50 text-lg mb-8 leading-relaxed max-w-lg opacity-90">
               Explore our curated selection of high-performance proxies, VPNs, RDPs, and SaaS accounts designed for professionals.
             </p>
           </motion.div>
@@ -102,7 +102,7 @@ const ProductCatalog: React.FC<ProductCatalogProps> = ({
                 placeholder="Find tools..." 
                 value={searchQuery}
                 onChange={(e) => onSearchChange(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-100 text-sm rounded-xl pl-4 pr-10 py-3 focus:ring-2 focus:ring-sky-400 outline-none transition-all"
+                className="w-full bg-slate-50 border border-slate-100 text-sm rounded-xl pl-4 pr-10 py-3 focus:ring-2 focus:ring-skyblue-400 outline-none transition-all"
               />
             </div>
           </div>
@@ -116,7 +116,7 @@ const ProductCatalog: React.FC<ProductCatalogProps> = ({
             <div className="space-y-1.5">
               <button 
                 onClick={() => onCategoryChange(null)}
-                className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-between group ${!selectedCategory ? 'bg-sky-500 text-white shadow-lg shadow-sky-100' : 'text-slate-500 hover:bg-slate-50'}`}
+                className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-between group ${!selectedCategory ? 'bg-skyblue-500 text-white shadow-lg shadow-skyblue-100' : 'text-slate-500 hover:bg-slate-50'}`}
               >
                 <span>All Assets</span>
                 <ChevronRight size={14} className={!selectedCategory ? 'text-white/70' : 'text-slate-300 group-hover:translate-x-1 transition-transform'} />
@@ -125,10 +125,10 @@ const ProductCatalog: React.FC<ProductCatalogProps> = ({
                 <button 
                   key={c.id}
                   onClick={() => onCategoryChange(c.id)}
-                  className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-between group ${selectedCategory === c.id ? 'bg-sky-500 text-white shadow-lg shadow-sky-100' : 'text-slate-500 hover:bg-slate-50'}`}
+                  className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center justify-between group ${selectedCategory === c.id ? 'bg-skyblue-500 text-white shadow-lg shadow-skyblue-100' : 'text-slate-500 hover:bg-slate-50'}`}
                 >
                   <span className="flex items-center gap-3">
-                    <i className={`fa-solid ${c.icon} w-4 text-center ${selectedCategory === c.id ? 'text-white' : 'text-sky-400'}`}></i>
+                    <i className={`fa-solid ${c.icon} w-4 text-center ${selectedCategory === c.id ? 'text-white' : 'text-skyblue-400'}`}></i>
                     {c.name}
                   </span>
                   <ChevronRight size={14} className={selectedCategory === c.id ? 'text-white/70' : 'text-slate-300 group-hover:translate-x-1 transition-transform'} />
@@ -146,7 +146,7 @@ const ProductCatalog: React.FC<ProductCatalogProps> = ({
             <select 
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as SortOption)}
-              className="w-full bg-slate-50 border border-slate-100 text-sm rounded-xl px-4 py-3 focus:ring-2 focus:ring-sky-400 outline-none appearance-none cursor-pointer"
+              className="w-full bg-slate-50 border border-slate-100 text-sm rounded-xl px-4 py-3 focus:ring-2 focus:ring-skyblue-400 outline-none appearance-none cursor-pointer"
             >
               <option value="newest">Newest Arrivals</option>
               <option value="price-low">Price: Low to High</option>
@@ -164,13 +164,13 @@ const ProductCatalog: React.FC<ProductCatalogProps> = ({
               <div className="flex bg-slate-100 p-1 rounded-lg">
                 <button 
                   onClick={() => setViewMode('grid')}
-                  className={`p-1.5 rounded-md transition-all ${viewMode === 'grid' ? 'bg-white text-sky-500 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                  className={`p-1.5 rounded-md transition-all ${viewMode === 'grid' ? 'bg-white text-skyblue-500 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                 >
                   <Grid size={18} />
                 </button>
                 <button 
                   onClick={() => setViewMode('list')}
-                  className={`p-1.5 rounded-md transition-all ${viewMode === 'list' ? 'bg-white text-sky-500 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                  className={`p-1.5 rounded-md transition-all ${viewMode === 'list' ? 'bg-white text-skyblue-500 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                 >
                   <List size={18} />
                 </button>
@@ -206,64 +206,64 @@ const ProductCatalog: React.FC<ProductCatalogProps> = ({
                     transition={{ duration: 0.3 }}
                     className={`group bg-white rounded-[2rem] border border-slate-100 overflow-hidden hover:shadow-2xl hover:shadow-slate-200/50 transition-all duration-500 ${viewMode === 'list' ? 'flex items-center p-5 gap-8' : 'flex flex-col h-full'}`}
                   >
-                    {/* Product Image Container */}
-                    <div className={`relative overflow-hidden bg-slate-50/50 ${viewMode === 'list' ? 'w-40 h-40 shrink-0 rounded-2xl' : 'aspect-[4/5]'}`}>
+                    {/* Product Image Container - Increased size by 25% */}
+                    <div className={`relative overflow-hidden bg-skyblue-50/50 flex items-center justify-center ${viewMode === 'list' ? 'w-16 h-16 shrink-0 rounded-xl ml-4' : 'h-32'}`}>
                       <img 
                         src={product.image} 
                         alt={product.name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
+                        className={`${viewMode === 'list' ? 'w-8 h-8' : 'w-14 h-14'} object-contain group-hover:scale-110 transition-transform duration-700 ease-out`}
                         referrerPolicy="no-referrer"
                       />
-                      <div className="absolute top-5 left-5">
-                        <span className="px-3 py-1.5 bg-white/90 backdrop-blur-md text-[9px] font-black text-slate-900 rounded-full shadow-sm uppercase tracking-[0.15em] border border-slate-100">
+                      <div className="absolute top-2 left-2">
+                        <span className="px-1.5 py-0.5 bg-white/90 backdrop-blur-md text-[7px] font-black text-skyblue-600 rounded-full shadow-sm uppercase tracking-[0.1em] border border-skyblue-100">
                           {product.category}
                         </span>
                       </div>
                       
                       {/* Quick Action Overlay */}
-                      <div className="absolute inset-0 bg-slate-900/0 group-hover:bg-slate-900/5 transition-colors duration-500 flex items-center justify-center">
+                      <div className="absolute inset-0 bg-skyblue-900/0 group-hover:bg-skyblue-900/5 transition-colors duration-500 flex items-center justify-center">
                          <button 
                            onClick={() => onViewDetails(product)}
-                           className="w-12 h-12 bg-white rounded-full shadow-xl flex items-center justify-center text-slate-900 opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300 hover:bg-sky-500 hover:text-white"
+                           className="w-8 h-8 bg-white rounded-full shadow-xl flex items-center justify-center text-skyblue-600 opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300 hover:bg-skyblue-500 hover:text-white"
                          >
-                           <Info size={20} />
+                           <Info size={14} />
                          </button>
                       </div>
                     </div>
 
                     {/* Product Info */}
-                    <div className={`flex flex-col flex-1 ${viewMode === 'list' ? 'py-2 pr-4' : 'p-7'}`}>
-                      <div className="mb-3">
-                        <h3 className="font-black text-slate-900 text-lg leading-tight group-hover:text-sky-600 transition-colors duration-300 line-clamp-1">
+                    <div className={`flex flex-col flex-1 ${viewMode === 'list' ? 'py-1 pr-4' : 'p-5'}`}>
+                      <div className="mb-2">
+                        <h3 className="font-black text-slate-900 text-sm leading-tight group-hover:text-skyblue-600 transition-colors duration-300 line-clamp-1">
                           {product.name}
                         </h3>
                       </div>
                       
-                      <p className={`text-slate-500 text-sm mb-6 line-clamp-2 leading-relaxed font-medium ${viewMode === 'list' ? 'max-w-xl' : ''}`}>
+                      <p className={`text-slate-500 text-[10px] mb-4 line-clamp-2 leading-relaxed font-medium ${viewMode === 'list' ? 'max-w-xl' : ''}`}>
                         {product.description}
                       </p>
 
                       <div className="mt-auto">
-                        <div className="flex items-center justify-between mb-6">
+                        <div className="flex items-center justify-between mb-4">
                           <div className="flex flex-col">
-                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Investment</span>
-                            <span className="text-xl font-black text-slate-900 tracking-tight">
+                            <span className="text-[7px] font-black text-slate-400 uppercase tracking-[0.2em] mb-0.5">Investment</span>
+                            <span className="text-base font-black text-slate-900 tracking-tight">
                               ₦{product.price.toLocaleString()}
                             </span>
                           </div>
                           
-                          <div className="flex items-center gap-1.5 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100">
-                            <Star size={12} className="text-amber-400" fill="currentColor" />
-                            <span className="text-[10px] font-black text-slate-700">{product.rating}</span>
+                          <div className="flex items-center gap-1 bg-slate-50 px-2 py-1 rounded-full border border-slate-100">
+                            <Star size={10} className="text-amber-400" fill="currentColor" />
+                            <span className="text-[9px] font-black text-slate-700">{product.rating}</span>
                           </div>
                         </div>
                         
                         <button 
                           onClick={() => onAddToCart(product)}
                           disabled={product.stock <= 0}
-                          className="w-full flex items-center justify-center gap-3 bg-slate-900 hover:bg-sky-600 text-white py-4 rounded-2xl font-black text-[11px] uppercase tracking-[0.15em] transition-all duration-300 active:scale-[0.98] disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none shadow-xl shadow-slate-200 group-hover:shadow-sky-500/20"
+                          className="w-full flex items-center justify-center gap-2 bg-skyblue-500 hover:bg-skyblue-600 text-white py-2.5 rounded-xl font-black text-[9px] uppercase tracking-[0.15em] transition-all duration-300 active:scale-[0.98] disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none shadow-lg shadow-skyblue-100/50 group-hover:shadow-skyblue-500/20"
                         >
-                          <ShoppingCart size={16} />
+                          <ShoppingCart size={12} />
                           <span>{product.stock > 0 ? 'Add to Cart' : 'Out of Stock'}</span>
                         </button>
                       </div>
@@ -286,7 +286,7 @@ const ProductCatalog: React.FC<ProductCatalogProps> = ({
                 </p>
                 <button 
                   onClick={() => { onCategoryChange(null); onSearchChange(''); }}
-                  className="mt-8 text-sky-500 font-bold text-sm hover:underline"
+                  className="mt-8 text-skyblue-500 font-bold text-sm hover:underline"
                 >
                   Clear all filters
                 </button>

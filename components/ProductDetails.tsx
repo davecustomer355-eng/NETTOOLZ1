@@ -21,21 +21,21 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack, onAddT
       {/* Back Button */}
       <button 
         onClick={onBack}
-        className="group flex items-center gap-2 text-slate-400 hover:text-sky-500 font-bold text-sm mb-8 transition-all"
+        className="group flex items-center gap-2 text-slate-400 hover:text-skyblue-500 font-bold text-sm mb-8 transition-all"
       >
-        <div className="w-8 h-8 rounded-full bg-white border border-slate-100 flex items-center justify-center group-hover:bg-sky-50 group-hover:border-sky-100 transition-all">
+        <div className="w-8 h-8 rounded-full bg-white border border-slate-100 flex items-center justify-center group-hover:bg-skyblue-50 group-hover:border-skyblue-100 transition-all">
           <ArrowLeft size={16} />
         </div>
         Back to Catalog
       </button>
 
-      <div className="bg-white rounded-[40px] overflow-hidden shadow-2xl shadow-sky-500/5 border border-slate-100">
+      <div className="bg-white rounded-[40px] overflow-hidden shadow-2xl shadow-skyblue-500/5 border border-slate-100">
         <div className="flex flex-col lg:flex-row">
           {/* Left: Image Section */}
           <div className="lg:w-1/2 p-8 lg:p-12 bg-slate-50 flex items-center justify-center relative overflow-hidden">
             {/* Decorative background elements */}
             <div className="absolute top-0 left-0 w-full h-full opacity-30 pointer-events-none">
-              <div className="absolute top-[-10%] right-[-10%] w-64 h-64 bg-sky-200 rounded-full blur-3xl"></div>
+              <div className="absolute top-[-10%] right-[-10%] w-64 h-64 bg-skyblue-200 rounded-full blur-3xl"></div>
               <div className="absolute bottom-[-10%] left-[-10%] w-64 h-64 bg-indigo-200 rounded-full blur-3xl"></div>
             </div>
             
@@ -43,12 +43,12 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack, onAddT
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ delay: 0.2 }}
-              className="relative z-10 w-full max-w-md aspect-square rounded-3xl overflow-hidden shadow-2xl"
+              className="relative z-10 w-full max-w-[175px] aspect-square rounded-3xl overflow-hidden shadow-2xl bg-white p-4"
             >
               <img 
                 src={product.image} 
                 alt={product.name}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-contain"
                 referrerPolicy="no-referrer"
               />
             </motion.div>
@@ -58,7 +58,7 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack, onAddT
           <div className="lg:w-1/2 p-8 lg:p-16 flex flex-col">
             <div className="mb-auto">
               <div className="flex items-center gap-3 mb-6">
-                <span className="px-3 py-1 bg-sky-500/10 text-sky-500 text-[10px] font-black uppercase tracking-[0.2em] rounded-full border border-sky-500/20">
+                <span className="px-3 py-1 bg-skyblue-500/10 text-skyblue-500 text-[10px] font-black uppercase tracking-[0.2em] rounded-full border border-skyblue-500/20">
                   {product.category}
                 </span>
                 <div className="flex items-center gap-1 text-amber-500 bg-amber-50 px-2 py-1 rounded-full border border-amber-100">
@@ -72,7 +72,7 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack, onAddT
               </h1>
 
               <div className="flex items-baseline gap-2 mb-8">
-                <span className="text-4xl font-black text-slate-900 tracking-tighter">₦{product.price.toLocaleString()}</span>
+                <span className="text-4xl font-black text-skyblue-600 tracking-tighter">₦{product.price.toLocaleString()}</span>
                 <span className="text-slate-400 text-sm font-medium">One-time payment</span>
               </div>
 
@@ -84,7 +84,7 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack, onAddT
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {product.features.map((feature, idx) => (
                     <div key={idx} className="flex items-center gap-3 text-slate-600">
-                      <div className="w-6 h-6 rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center shrink-0">
+                      <div className="w-6 h-6 rounded-full bg-skyblue-50 text-skyblue-500 flex items-center justify-center shrink-0">
                         <CheckCircle2 size={14} />
                       </div>
                       <span className="text-sm font-semibold">{feature}</span>
@@ -100,7 +100,7 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack, onAddT
                 <button 
                   onClick={() => onAddToCart(product)}
                   disabled={product.stock <= 0}
-                  className="w-full sm:flex-1 bg-slate-900 hover:bg-sky-500 text-white h-16 rounded-2xl font-black text-lg transition-all active:scale-95 flex items-center justify-center gap-3 shadow-xl shadow-slate-200 disabled:bg-slate-200 disabled:shadow-none"
+                  className="w-full sm:flex-1 bg-skyblue-500 hover:bg-skyblue-600 text-white h-16 rounded-2xl font-black text-lg transition-all active:scale-95 flex items-center justify-center gap-3 shadow-xl shadow-skyblue-100 disabled:bg-slate-200 disabled:shadow-none"
                 >
                   <ShoppingCart size={24} />
                   {product.stock > 0 ? 'Add to Cart' : 'Out of Stock'}

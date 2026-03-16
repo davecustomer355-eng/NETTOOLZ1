@@ -1,15 +1,16 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Product, Category, SiteSettings, AdminUser, PaymentMethod, User } from '../types';
+import { dbService } from '../services/dbService';
 
 interface AdminDashboardProps {
   products: Product[];
   settings: SiteSettings;
   admins: AdminUser[];
   users: User[];
-  onUpdateProducts: (newProducts: Product[]) => void;
-  onUpdateSettings: (newSettings: SiteSettings) => void;
-  onUpdateAdmins: (newAdmins: AdminUser[]) => void;
+  onUpdateProducts: (newProducts: Product[]) => Promise<void>;
+  onUpdateSettings: (newSettings: SiteSettings) => Promise<void>;
+  onUpdateAdmins: (newAdmins: AdminUser[]) => Promise<void>;
   onLogout: () => void;
 }
 
@@ -24,6 +25,29 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showCategoryForm, setShowCategoryForm] = useState(false);
   const [showAdminForm, setShowAdminForm] = useState(false);
+  const [showPaymentForm, setShowPaymentForm] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const koralPayMethod = settings.paymentMethods.find(m => m.name.toLowerCase().includes('koralpay'));
+
+  const handleSetupKoralPay = () => {
+    if (koralPayMethod) {
+      setEditingPayment(koralPayMethod);
+    } else {
+      setNewPayment({
+        type: 'bank',
+        name: 'KoralPay (Automated)',
+        details: 'Transfer to the virtual account generated at checkout.',
+        isActive: true,
+        isAutomated: true,
+        apiPublicKey: '',
+        merchantId: '',
+        webhookUrl: ''
+      });
+      setShowPaymentForm(true);
+    }
+  };
 
   // Bulk & Global Actions State
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
@@ -36,6 +60,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const editFileInputRef = useRef<HTMLInputElement>(null);
   const createFileInputRef = useRef<HTMLInputElement>(null);
+  const importFileInputRef = useRef<HTMLInputElement>(null);
 
   // Form states
   const [newProduct, setNewProduct] = useState({
@@ -45,6 +70,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const [newCategory, setNewCategory] = useState({ name: '', icon: 'fa-box' });
   const [newAdmin, setNewAdmin] = useState({ username: '', role: 'editor' as 'super' | 'editor' });
+  const [newPayment, setNewPayment] = useState<Partial<PaymentMethod>>({
+    type: 'bank',
+    name: '',
+    details: '',
+    isActive: true,
+    isAutomated: false
+  });
 
   // Reset payloads when opening create form
   useEffect(() => {
@@ -92,57 +124,79 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setActivePayloads(updated);
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, isEdit = false) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, isEdit = false) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64 = reader.result as string;
-        if (isEdit && editingProduct) setEditingProduct({ ...editingProduct, image: base64 });
-        else setNewProduct({ ...newProduct, image: base64 });
-      };
-      reader.readAsDataURL(file);
+      setIsSaving(true);
+      try {
+        const imageUrl = await dbService.uploadProductImage(file);
+        if (imageUrl) {
+          if (isEdit && editingProduct) setEditingProduct({ ...editingProduct, image: imageUrl });
+          else setNewProduct({ ...newProduct, image: imageUrl });
+        } else {
+          alert('Failed to upload image to storage bucket. Please ensure the "products" bucket exists in Supabase.');
+        }
+      } catch (err) {
+        console.error('Upload error:', err);
+        alert('An error occurred during image upload.');
+      } finally {
+        setIsSaving(false);
+      }
     }
   };
 
-  const handleCreateProduct = (e: React.FormEvent) => {
+  const handleCreateProduct = async (e: React.FormEvent) => {
     e.preventDefault();
-    const stockCount = parseInt(newProduct.stock) || 0;
-    const finalPayloads = activePayloads.slice(0, stockCount);
-    
-    const product: Product = {
-      id: Date.now().toString(),
-      name: newProduct.name,
-      description: newProduct.description,
-      price: parseFloat(newProduct.price),
-      category: newProduct.category,
-      stock: stockCount,
-      rating: 5.0,
-      image: newProduct.image || 'https://picsum.photos/seed/tool/400/300',
-      features: newProduct.features.split(',').map(f => f.trim()).filter(f => f !== ''),
-      isVisible: true,
-      secretContent: JSON.stringify(finalPayloads)
-    };
-    onUpdateProducts([product, ...products]);
-    setShowCreateForm(false);
-    setNewProduct({ name: '', description: '', price: '', category: settings.categories[0]?.id || '', stock: '', image: '', features: '', secretContent: '' });
-    setActivePayloads([]);
+    setIsSaving(true);
+    try {
+      const stockCount = parseInt(newProduct.stock) || 0;
+      const finalPayloads = activePayloads.slice(0, stockCount);
+      
+      const product: Product = {
+        id: Date.now().toString(),
+        name: newProduct.name,
+        description: newProduct.description,
+        price: parseFloat(newProduct.price),
+        category: newProduct.category,
+        stock: stockCount,
+        rating: 5.0,
+        image: newProduct.image || 'https://picsum.photos/seed/tool/400/300',
+        features: newProduct.features.split(',').map(f => f.trim()).filter(f => f !== ''),
+        isVisible: true,
+        secretContent: JSON.stringify(finalPayloads)
+      };
+      await onUpdateProducts([product, ...products]);
+      setShowCreateForm(false);
+      setNewProduct({ name: '', description: '', price: '', category: settings.categories[0]?.id || '', stock: '', image: '', features: '', secretContent: '' });
+      setActivePayloads([]);
+    } catch (err) {
+      alert("Failed to save product. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handleSaveProductEdit = (e: React.FormEvent) => {
+  const handleSaveProductEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingProduct) return;
     
-    const finalPayloads = activePayloads.slice(0, editingProduct.stock);
-    
-    const updatedProduct = {
-       ...editingProduct,
-       secretContent: JSON.stringify(finalPayloads)
-    };
+    setIsSaving(true);
+    try {
+      const finalPayloads = activePayloads.slice(0, editingProduct.stock);
+      
+      const updatedProduct = {
+         ...editingProduct,
+         secretContent: JSON.stringify(finalPayloads)
+      };
 
-    onUpdateProducts(products.map(p => p.id === editingProduct.id ? updatedProduct : p));
-    setEditingProduct(null);
-    setActivePayloads([]);
+      await onUpdateProducts(products.map(p => p.id === editingProduct.id ? updatedProduct : p));
+      setEditingProduct(null);
+      setActivePayloads([]);
+    } catch (err) {
+      alert("Failed to update product.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // Bulk Operations
@@ -238,12 +292,98 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   };
 
+  const handleBulkExport = () => {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(products, null, 2));
+    const downloadAnchorNode = document.createElement('a');
+    downloadAnchorNode.setAttribute("href", dataStr);
+    downloadAnchorNode.setAttribute("download", `nettoolz_inventory_${new Date().toISOString().split('T')[0]}.json`);
+    document.body.appendChild(downloadAnchorNode);
+    downloadAnchorNode.click();
+    downloadAnchorNode.remove();
+  };
+
+  const handleBulkImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const importedProducts = JSON.parse(event.target?.result as string);
+        if (Array.isArray(importedProducts)) {
+          // Merge or Replace? Let's Merge by ID
+          const mergedProducts = [...products];
+          importedProducts.forEach((newP: Product) => {
+            const index = mergedProducts.findIndex(p => p.id === newP.id);
+            if (index !== -1) {
+              mergedProducts[index] = newP;
+            } else {
+              mergedProducts.push(newP);
+            }
+          });
+          onUpdateProducts(mergedProducts);
+          alert(`Successfully imported ${importedProducts.length} products.`);
+        } else {
+          alert("Invalid file format. Please upload a JSON array of products.");
+        }
+      } catch (err) {
+        console.error("Import error:", err);
+        alert("Failed to parse JSON file.");
+      }
+    };
+    reader.readAsText(file);
+    // Reset input
+    e.target.value = '';
+  };
+
+  const handleManualSync = async () => {
+    setIsSyncing(true);
+    try {
+      await onUpdateProducts([...products]);
+      alert("Database synchronization complete. All products have been verified and saved.");
+    } catch (err) {
+      alert("Synchronization failed. Please check your connection.");
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   const handleSavePayment = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingPayment) return;
     const methods = settings.paymentMethods.map(m => m.id === editingPayment.id ? editingPayment : m);
     onUpdateSettings({ ...settings, paymentMethods: methods });
     setEditingPayment(null);
+  };
+
+  const handleCreatePayment = (e: React.FormEvent) => {
+    e.preventDefault();
+    const method: PaymentMethod = {
+      id: `pay_${Date.now()}`,
+      type: newPayment.type as 'bank' | 'crypto',
+      name: newPayment.name || '',
+      details: newPayment.details || '',
+      isActive: true,
+      isAutomated: newPayment.isAutomated || false,
+      bankName: newPayment.bankName,
+      accountNumber: newPayment.accountNumber,
+      accountName: newPayment.accountName,
+      walletAddress: newPayment.walletAddress,
+      network: newPayment.network,
+      apiPublicKey: newPayment.apiPublicKey,
+      apiSecretKey: newPayment.apiSecretKey,
+      merchantId: newPayment.merchantId,
+      webhookUrl: newPayment.webhookUrl
+    };
+    onUpdateSettings({ ...settings, paymentMethods: [...settings.paymentMethods, method] });
+    setShowPaymentForm(false);
+    setNewPayment({ type: 'bank', name: '', details: '', isActive: true, isAutomated: false });
+  };
+
+  const handleDeletePayment = (id: string) => {
+    if (confirm("Delete this payment gateway? This cannot be undone.")) {
+      onUpdateSettings({ ...settings, paymentMethods: settings.paymentMethods.filter(m => m.id !== id) });
+    }
   };
 
   return (
@@ -293,13 +433,46 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
           
           <div className="flex items-center space-x-3">
             {activeTab === 'products' && (
-              <button 
-                onClick={() => setShowCreateForm(!showCreateForm)}
-                className={`flex items-center space-x-3 font-black px-8 py-4 rounded-2xl shadow-xl transition-all active:scale-95 ${showCreateForm ? 'bg-slate-800 text-white' : 'bg-skyblue-500 text-white shadow-skyblue-500/20'}`}
-              >
-                <i className={`fa-solid ${showCreateForm ? 'fa-xmark' : 'fa-plus'}`}></i>
-                <span>{showCreateForm ? 'Discard' : 'Deploy New Asset'}</span>
-              </button>
+              <>
+                <input 
+                  type="file" 
+                  ref={importFileInputRef} 
+                  onChange={handleBulkImport} 
+                  className="hidden" 
+                  accept=".json" 
+                />
+                <div className="flex bg-white dark:bg-slate-800 p-1.5 rounded-2xl border border-skyblue-100 dark:border-slate-700 shadow-sm mr-2">
+                  <button 
+                    onClick={handleManualSync}
+                    disabled={isSyncing}
+                    title="Force Sync with Database"
+                    className="w-12 h-12 flex items-center justify-center text-skyblue-500 hover:bg-skyblue-50 dark:hover:bg-slate-700 rounded-xl transition-all"
+                  >
+                    <i className={`fa-solid fa-rotate ${isSyncing ? 'fa-spin' : ''}`}></i>
+                  </button>
+                  <button 
+                    onClick={handleBulkExport}
+                    title="Export Inventory (JSON)"
+                    className="w-12 h-12 flex items-center justify-center text-slate-400 hover:text-skyblue-500 hover:bg-skyblue-50 dark:hover:bg-slate-700 rounded-xl transition-all"
+                  >
+                    <i className="fa-solid fa-file-export"></i>
+                  </button>
+                  <button 
+                    onClick={() => importFileInputRef.current?.click()}
+                    title="Import Inventory (JSON)"
+                    className="w-12 h-12 flex items-center justify-center text-slate-400 hover:text-skyblue-500 hover:bg-skyblue-50 dark:hover:bg-slate-700 rounded-xl transition-all"
+                  >
+                    <i className="fa-solid fa-file-import"></i>
+                  </button>
+                </div>
+                <button 
+                  onClick={() => setShowCreateForm(!showCreateForm)}
+                  className={`flex items-center space-x-3 font-black px-8 py-4 rounded-2xl shadow-xl transition-all active:scale-95 ${showCreateForm ? 'bg-slate-800 text-white' : 'bg-skyblue-500 text-white shadow-skyblue-500/20'}`}
+                >
+                  <i className={`fa-solid ${showCreateForm ? 'fa-xmark' : 'fa-plus'}`}></i>
+                  <span>{showCreateForm ? 'Discard' : 'Deploy New Asset'}</span>
+                </button>
+              </>
             )}
             {activeTab === 'categories' && (
               <button 
@@ -314,6 +487,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <button onClick={() => setShowAdminForm(!showAdminForm)} className={`flex items-center space-x-3 font-black px-8 py-4 rounded-2xl shadow-xl transition-all active:scale-95 ${showAdminForm ? 'bg-slate-800 text-white' : 'bg-skyblue-500 text-white shadow-skyblue-500/20'}`}>
                 <i className={`fa-solid ${showAdminForm ? 'fa-xmark' : 'fa-user-plus'}`}></i>
                 <span>{showAdminForm ? 'Cancel' : 'Provision Account'}</span>
+              </button>
+            )}
+            {activeTab === 'payments' && (
+              <button onClick={() => setShowPaymentForm(!showPaymentForm)} className={`flex items-center space-x-3 font-black px-8 py-4 rounded-2xl shadow-xl transition-all active:scale-95 ${showPaymentForm ? 'bg-slate-800 text-white' : 'bg-skyblue-500 text-white shadow-skyblue-500/20'}`}>
+                <i className={`fa-solid ${showPaymentForm ? 'fa-xmark' : 'fa-plus'}`}></i>
+                <span>{showPaymentForm ? 'Cancel' : 'Add Gateway'}</span>
               </button>
             )}
           </div>
@@ -411,7 +590,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     </div>
                  </div>
                  <div className="flex justify-end pt-6">
-                   <button type="submit" className="bg-skyblue-500 text-white font-black px-12 py-4 rounded-2xl shadow-xl shadow-skyblue-500/20 active:scale-95 transition-all">Finalize & Deploy</button>
+                   <button 
+                     type="submit" 
+                     disabled={isSaving}
+                     className="bg-skyblue-500 text-white font-black px-12 py-4 rounded-2xl shadow-xl shadow-skyblue-500/20 active:scale-95 transition-all disabled:opacity-50 flex items-center space-x-2"
+                   >
+                     {isSaving && <i className="fa-solid fa-circle-notch fa-spin"></i>}
+                     <span>{isSaving ? 'Deploying...' : 'Finalize & Deploy'}</span>
+                   </button>
                  </div>
                </form>
             )}
@@ -693,6 +879,91 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
         {activeTab === 'payments' && (
           <div className="space-y-8 animate-in fade-in duration-500">
+             {/* KoralPay Specific Setup Card */}
+             {!showPaymentForm && (
+               <div className="bg-gradient-to-br from-slate-900 to-slate-800 p-10 rounded-[3rem] text-white shadow-2xl border border-white/5 relative overflow-hidden group">
+                 <div className="absolute -right-20 -top-20 w-64 h-64 bg-skyblue-500/10 rounded-full blur-3xl group-hover:bg-skyblue-500/20 transition-all duration-700"></div>
+                 <div className="absolute -left-20 -bottom-20 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl group-hover:bg-purple-500/20 transition-all duration-700"></div>
+                 
+                 <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-8">
+                   <div className="flex items-center space-x-6">
+                     <div className="w-20 h-20 bg-skyblue-500 rounded-[2rem] flex items-center justify-center text-4xl shadow-2xl shadow-skyblue-500/40 animate-pulse">
+                       <i className="fa-solid fa-bolt-lightning"></i>
+                     </div>
+                     <div>
+                       <div className="flex items-center space-x-3 mb-1">
+                         <h4 className="text-3xl font-black tracking-tighter">KoralPay Gateway</h4>
+                         <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${koralPayMethod?.isActive ? 'bg-green-500 text-white' : 'bg-slate-700 text-slate-400'}`}>
+                           {koralPayMethod?.isActive ? 'Active' : 'Inactive'}
+                         </span>
+                       </div>
+                       <p className="text-slate-400 font-bold text-sm uppercase tracking-widest">Primary Payment Infrastructure</p>
+                     </div>
+                   </div>
+
+                   <div className="flex flex-wrap items-center gap-4">
+                     <div className="bg-white/5 backdrop-blur-md px-6 py-4 rounded-2xl border border-white/10">
+                       <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Merchant ID</p>
+                       <p className="font-mono text-sm font-bold text-skyblue-400">{koralPayMethod?.merchantId || 'UNCONFIGURED'}</p>
+                     </div>
+                     <div className="bg-white/5 backdrop-blur-md px-6 py-4 rounded-2xl border border-white/10">
+                       <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Public Key</p>
+                       <p className="font-mono text-sm font-bold text-skyblue-400">{koralPayMethod?.apiPublicKey ? `${koralPayMethod.apiPublicKey.slice(0, 8)}...` : 'UNCONFIGURED'}</p>
+                     </div>
+                     <button 
+                       onClick={handleSetupKoralPay}
+                       className="bg-white text-slate-900 font-black px-8 py-5 rounded-2xl hover:bg-skyblue-500 hover:text-white transition-all active:scale-95 shadow-xl"
+                     >
+                       <i className="fa-solid fa-sliders mr-2"></i>
+                       Configure Setup
+                     </button>
+                   </div>
+                 </div>
+               </div>
+             )}
+
+             {showPaymentForm && (
+               <form onSubmit={handleCreatePayment} className="bg-white dark:bg-slate-800 p-10 rounded-[2.5rem] border border-skyblue-100 dark:border-slate-700 shadow-2xl space-y-6 animate-in slide-in-from-top-4">
+                 <h4 className="text-2xl font-black dark:text-white mb-6">New Payment Gateway</h4>
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block px-1">Gateway Name</label>
+                      <input required type="text" value={newPayment.name} onChange={e => setNewPayment({...newPayment, name: e.target.value})} className="w-full bg-skyblue-50/50 dark:bg-slate-900 p-4 rounded-2xl border border-skyblue-100 dark:border-slate-700 dark:text-white font-bold" placeholder="e.g. Flutterwave" />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block px-1">Type</label>
+                      <select value={newPayment.type} onChange={e => setNewPayment({...newPayment, type: e.target.value as 'bank' | 'crypto'})} className="w-full bg-skyblue-50/50 dark:bg-slate-900 p-4 rounded-2xl border border-skyblue-100 dark:border-slate-700 dark:text-white font-bold">
+                        <option value="bank">Bank Transfer / Card</option>
+                        <option value="crypto">Cryptocurrency</option>
+                      </select>
+                    </div>
+                    <div className="col-span-2 space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block px-1">Instructions for User</label>
+                      <textarea required value={newPayment.details} onChange={e => setNewPayment({...newPayment, details: e.target.value})} className="w-full bg-skyblue-50/50 dark:bg-slate-900 p-4 rounded-2xl border border-skyblue-100 dark:border-slate-700 dark:text-white font-medium min-h-[100px]" placeholder="Explain how the user should pay..." />
+                    </div>
+                    <div className="col-span-2 flex items-center justify-between bg-skyblue-50/30 dark:bg-slate-950 p-4 rounded-2xl border border-skyblue-100 dark:border-slate-800">
+                      <div>
+                        <span className="font-black text-slate-700 dark:text-white block">Automated Processing</span>
+                        <span className="text-xs text-slate-400">Use API keys for instant verification</span>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input 
+                          type="checkbox" 
+                          checked={newPayment.isAutomated} 
+                          onChange={e => setNewPayment({...newPayment, isAutomated: e.target.checked})} 
+                          className="sr-only peer" 
+                        />
+                        <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-skyblue-500"></div>
+                      </label>
+                    </div>
+                 </div>
+                 <div className="flex justify-end pt-6 gap-4">
+                   <button type="button" onClick={() => setShowPaymentForm(false)} className="px-8 py-4 text-slate-400 font-black uppercase tracking-widest text-[10px]">Cancel</button>
+                   <button type="submit" className="bg-skyblue-500 text-white font-black px-12 py-4 rounded-2xl shadow-xl shadow-skyblue-500/20 active:scale-95 transition-all">Create Gateway</button>
+                 </div>
+               </form>
+             )}
+
              <div className="bg-white dark:bg-slate-800 p-10 rounded-[2.5rem] border border-skyblue-100 dark:border-slate-700 shadow-sm">
                 <div className="flex items-center justify-between mb-10">
                   <div>
@@ -735,13 +1006,21 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                        
                        <p className="text-sm text-slate-500 dark:text-slate-400 mb-6 line-clamp-2 h-10">{method.details}</p>
                        
-                       <button 
-                         onClick={() => setEditingPayment(method)}
-                         className="w-full py-3 rounded-xl border-2 border-slate-100 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold hover:border-skyblue-500 hover:text-skyblue-500 transition-colors flex items-center justify-center space-x-2"
-                       >
-                         <i className="fa-solid fa-gear"></i>
-                         <span>Configure Settings</span>
-                       </button>
+                       <div className="flex gap-3 mt-6">
+                         <button 
+                           onClick={() => setEditingPayment(method)}
+                           className="flex-1 py-3 rounded-xl border-2 border-slate-100 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold hover:border-skyblue-500 hover:text-skyblue-500 transition-colors flex items-center justify-center space-x-2"
+                         >
+                           <i className="fa-solid fa-gear"></i>
+                           <span>Configure</span>
+                         </button>
+                         <button 
+                           onClick={() => handleDeletePayment(method.id)}
+                           className="w-12 py-3 rounded-xl border-2 border-red-50 dark:border-slate-700 text-red-400 hover:border-red-500 hover:bg-red-500 hover:text-white transition-all flex items-center justify-center"
+                         >
+                           <i className="fa-solid fa-trash-can"></i>
+                         </button>
+                       </div>
                     </div>
                   ))}
                 </div>
@@ -931,8 +1210,16 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                           <input type="text" value={editingPayment.apiPublicKey || ''} onChange={e => setEditingPayment({...editingPayment, apiPublicKey: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-700 dark:text-white font-mono text-sm" placeholder="pk_live_..." />
                         </div>
                         <div className="col-span-2">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block px-1 mb-1">API Secret Key</label>
+                          <input type="password" value={editingPayment.apiSecretKey || ''} onChange={e => setEditingPayment({...editingPayment, apiSecretKey: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-700 dark:text-white font-mono text-sm" placeholder="sk_live_..." />
+                        </div>
+                        <div>
                           <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block px-1 mb-1">Merchant ID</label>
                           <input type="text" value={editingPayment.merchantId || ''} onChange={e => setEditingPayment({...editingPayment, merchantId: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-700 dark:text-white font-mono text-sm" />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block px-1 mb-1">Webhook URL</label>
+                          <input type="text" value={editingPayment.webhookUrl || ''} onChange={e => setEditingPayment({...editingPayment, webhookUrl: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-700 dark:text-white font-mono text-sm" placeholder="https://..." />
                         </div>
                      </>
                    ) : (
@@ -1094,7 +1381,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
               <div className="md:col-span-2 flex justify-end space-x-4 pt-8">
                 <button type="button" onClick={() => setEditingProduct(null)} className="px-8 py-4 text-slate-400 font-black uppercase tracking-widest text-[10px]">Cancel</button>
-                <button type="submit" className="bg-skyblue-500 text-white font-black px-12 py-4 rounded-2xl shadow-xl shadow-skyblue-500/20 transition-all active:scale-95">Update Specification</button>
+                <button 
+                  type="submit" 
+                  disabled={isSaving}
+                  className="bg-skyblue-500 text-white font-black px-12 py-4 rounded-2xl shadow-xl shadow-skyblue-500/20 transition-all active:scale-95 disabled:opacity-50 flex items-center space-x-2"
+                >
+                  {isSaving && <i className="fa-solid fa-circle-notch fa-spin"></i>}
+                  <span>{isSaving ? 'Updating...' : 'Update Specification'}</span>
+                </button>
               </div>
             </form>
           </div>

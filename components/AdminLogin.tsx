@@ -1,7 +1,6 @@
 
 import React, { useState } from 'react';
-import { auth } from '../firebase';
-import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { supabase } from '../supabase';
 
 interface AdminLoginProps {
   onLogin: (success: boolean) => void;
@@ -24,9 +23,17 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin, onCancel }) => {
 
   const handleGoogleLogin = async () => {
     try {
-      const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
-      onLogin(true);
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin,
+          skipBrowserRedirect: true
+        }
+      });
+      if (error) throw error;
+      if (data?.url) {
+        window.location.href = data.url;
+      }
     } catch (err) {
       setError('Google Login failed. Make sure you are using an authorized admin email.');
       console.error(err);
@@ -35,9 +42,9 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin, onCancel }) => {
 
   return (
     <div className="min-h-[80vh] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8 bg-white p-10 rounded-3xl border border-sky-100 shadow-xl">
+      <div className="max-w-md w-full space-y-8 bg-white p-10 rounded-3xl border border-skyblue-100 shadow-xl">
         <div className="text-center">
-          <div className="mx-auto h-16 w-16 bg-sky-500 rounded-2xl flex items-center justify-center text-white text-3xl mb-4 shadow-lg shadow-sky-200">
+          <div className="mx-auto h-16 w-16 bg-skyblue-500 rounded-2xl flex items-center justify-center text-white text-3xl mb-4 shadow-lg shadow-skyblue-200">
             <i className="fa-solid fa-user-shield"></i>
           </div>
           <h2 className="text-3xl font-black text-slate-900 tracking-tight">Admin Login</h2>
@@ -51,7 +58,7 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin, onCancel }) => {
               <input
                 type="text"
                 required
-                className="appearance-none relative block w-full px-4 py-3 border border-sky-100 placeholder-slate-400 text-slate-900 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 sm:text-sm bg-sky-50/50"
+                className="appearance-none relative block w-full px-4 py-3 border border-skyblue-100 placeholder-slate-400 text-slate-900 rounded-xl focus:outline-none focus:ring-2 focus:ring-skyblue-500 focus:border-skyblue-500 sm:text-sm bg-skyblue-50/50"
                 placeholder="Enter admin username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
@@ -62,7 +69,7 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin, onCancel }) => {
               <input
                 type="password"
                 required
-                className="appearance-none relative block w-full px-4 py-3 border border-sky-100 placeholder-slate-400 text-slate-900 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 sm:text-sm bg-sky-50/50"
+                className="appearance-none relative block w-full px-4 py-3 border border-skyblue-100 placeholder-slate-400 text-slate-900 rounded-xl focus:outline-none focus:ring-2 focus:ring-skyblue-500 focus:border-skyblue-500 sm:text-sm bg-skyblue-50/50"
                 placeholder="Enter password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -77,13 +84,13 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin, onCancel }) => {
               <button
                 type="button"
                 onClick={onCancel}
-                className="flex-1 py-3 px-4 border-2 border-sky-100 text-sm font-bold rounded-xl text-slate-500 hover:bg-sky-50 transition-colors"
+                className="flex-1 py-3 px-4 border-2 border-skyblue-100 text-sm font-bold rounded-xl text-slate-500 hover:bg-skyblue-50 transition-colors"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="flex-1 py-3 px-4 border border-transparent text-sm font-bold rounded-xl text-white bg-sky-500 hover:bg-sky-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 shadow-lg shadow-sky-200"
+                className="flex-1 py-3 px-4 border border-transparent text-sm font-bold rounded-xl text-white bg-skyblue-500 hover:bg-skyblue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-skyblue-500 shadow-lg shadow-skyblue-200"
               >
                 Sign in
               </button>
@@ -103,7 +110,7 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin, onCancel }) => {
               onClick={handleGoogleLogin}
               className="w-full py-3 px-4 border-2 border-slate-100 text-sm font-bold rounded-xl text-slate-700 hover:bg-slate-50 transition-all flex items-center justify-center gap-2"
             >
-              <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-5 h-5" />
+              <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" className="w-5 h-5" />
               Developer Google Login
             </button>
           </div>

@@ -1,189 +1,159 @@
-import { 
-  collection, 
-  getDocs, 
-  setDoc, 
-  doc, 
-  getDoc, 
-  query, 
-  where, 
-  deleteDoc,
-  writeBatch,
-  getDocFromServer
-} from 'firebase/firestore';
-import { db, auth } from '../firebase';
+import { supabase } from '../supabase';
 import { Product, User, SiteSettings, AdminUser } from '../types';
-
-enum OperationType {
-  CREATE = 'create',
-  UPDATE = 'update',
-  DELETE = 'delete',
-  LIST = 'list',
-  GET = 'get',
-  WRITE = 'write',
-}
-
-interface FirestoreErrorInfo {
-  error: string;
-  operationType: OperationType;
-  path: string | null;
-  authInfo: {
-    userId: string | undefined;
-    email: string | null | undefined;
-    emailVerified: boolean | undefined;
-    isAnonymous: boolean | undefined;
-    tenantId: string | null | undefined;
-    providerInfo: {
-      providerId: string;
-      displayName: string | null;
-      email: string | null;
-      photoUrl: string | null;
-    }[];
-  }
-}
-
-function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
-  const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
-    authInfo: {
-      userId: auth.currentUser?.uid,
-      email: auth.currentUser?.email,
-      emailVerified: auth.currentUser?.emailVerified,
-      isAnonymous: auth.currentUser?.isAnonymous,
-      tenantId: auth.currentUser?.tenantId,
-      providerInfo: auth.currentUser?.providerData.map(provider => ({
-        providerId: provider.providerId,
-        displayName: provider.displayName,
-        email: provider.email,
-        photoUrl: provider.photoURL
-      })) || []
-    },
-    operationType,
-    path
-  }
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
-  throw new Error(JSON.stringify(errInfo));
-}
 
 export class DatabaseService {
   async init(): Promise<boolean> {
-    console.log('Initializing Firebase connection...');
+    console.log('Initializing Supabase connection...');
     try {
-      // Test connection by attempting to fetch settings
-      await getDocFromServer(doc(db, 'settings', 'main_config'));
-      console.log('Firebase Connection Verified Successfully.');
+      const { data, error } = await supabase.from('settings').select('*').limit(1);
+      if (error) throw error;
+      console.log('Supabase Connection Verified Successfully.');
       return true;
     } catch (err) {
-      if (err instanceof Error && err.message.includes('the client is offline')) {
-        console.warn('Firebase is unreachable (Offline Mode).');
-        return false;
-      }
-      // If it's just a "not found" or "permission denied" it might still be "connected"
-      console.log('Firebase Init check finished.');
-      return true;
+      console.warn('Supabase initialization check failed:', err);
+      return false;
     }
   }
 
   // Products
   async getAllProducts(): Promise<Product[]> {
-    const path = 'products';
     try {
-      const querySnapshot = await getDocs(collection(db, path));
-      return querySnapshot.docs.map(doc => doc.data() as Product);
+      const { data, error } = await supabase
+        .from('products')
+        .select('*');
+      
+      if (error) throw error;
+      return (data || []) as Product[];
     } catch (err) {
-      handleFirestoreError(err, OperationType.LIST, path);
+      console.error('Error fetching products:', err);
       return [];
     }
   }
 
   async saveProducts(products: Product[]): Promise<void> {
-    const path = 'products';
     try {
-      const batch = writeBatch(db);
+      const { error } = await supabase
+        .from('products')
+        .upsert(products);
       
-      // In Firestore, we don't necessarily need to delete items not in the list 
-      // unless we want a perfect sync. The original code did this.
-      // For simplicity and to avoid hitting limits, we'll just upsert.
-      // If we really need to delete, we'd fetch all IDs first.
-      
-      for (const product of products) {
-        const docRef = doc(db, path, product.id);
-        batch.set(docRef, product);
-      }
-      
-      await batch.commit();
+      if (error) throw error;
     } catch (err) {
-      handleFirestoreError(err, OperationType.WRITE, path);
+      console.error('Error saving products:', err);
     }
   }
 
   // Users
   async getAllUsers(): Promise<User[]> {
-    const path = 'users';
     try {
-      const querySnapshot = await getDocs(collection(db, path));
-      return querySnapshot.docs.map(doc => doc.data() as User);
+      const { data, error } = await supabase
+        .from('users')
+        .select('*');
+      
+      if (error) throw error;
+      return (data || []) as User[];
     } catch (err) {
-      handleFirestoreError(err, OperationType.LIST, path);
+      console.error('Error fetching users:', err);
       return [];
     }
   }
 
   async saveUser(user: User): Promise<void> {
-    const path = 'users';
     try {
-      await setDoc(doc(db, path, user.id), user);
+      const { error } = await supabase
+        .from('users')
+        .upsert(user);
+      
+      if (error) throw error;
     } catch (err) {
-      handleFirestoreError(err, OperationType.WRITE, path);
+      console.error('Error saving user:', err);
     }
   }
 
   // Settings
   async getSettings(): Promise<SiteSettings | null> {
-    const path = 'settings/main_config';
     try {
-      const docSnap = await getDoc(doc(db, 'settings', 'main_config'));
-      if (docSnap.exists()) {
-        return docSnap.data() as SiteSettings;
+      const { data, error } = await supabase
+        .from('settings')
+        .select('config')
+        .eq('id', 'main_config')
+        .single();
+      
+      if (error) {
+        if (error.code === 'PGRST116') return null; // Not found
+        throw error;
       }
-      return null;
+      return data.config as SiteSettings;
     } catch (err) {
-      handleFirestoreError(err, OperationType.GET, path);
+      console.error('Error fetching settings:', err);
       return null;
     }
   }
 
   async saveSettings(settings: SiteSettings): Promise<void> {
-    const path = 'settings/main_config';
     try {
-      await setDoc(doc(db, 'settings', 'main_config'), settings);
+      const { error } = await supabase
+        .from('settings')
+        .upsert({ id: 'main_config', config: settings });
+      
+      if (error) throw error;
     } catch (err) {
-      handleFirestoreError(err, OperationType.WRITE, path);
+      console.error('Error saving settings:', err);
+    }
+  }
+
+  // Storage
+  async uploadProductImage(file: File): Promise<string | null> {
+    try {
+      // Ensure bucket exists (best effort)
+      await supabase.storage.createBucket('products', { public: true }).catch(() => {});
+
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('products')
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage
+        .from('products')
+        .getPublicUrl(fileName);
+
+      return data.publicUrl;
+    } catch (err) {
+      console.error('Error uploading product image:', err);
+      return null;
     }
   }
 
   // Admins
   async getAllAdmins(): Promise<AdminUser[]> {
-    const path = 'admins';
     try {
-      const querySnapshot = await getDocs(collection(db, path));
-      return querySnapshot.docs.map(doc => doc.data() as AdminUser);
+      const { data, error } = await supabase
+        .from('admins')
+        .select('*');
+      
+      if (error) throw error;
+      return (data || []) as AdminUser[];
     } catch (err) {
-      handleFirestoreError(err, OperationType.LIST, path);
+      console.error('Error fetching admins:', err);
       return [];
     }
   }
 
   async saveAdmins(admins: AdminUser[]): Promise<void> {
-    const path = 'admins';
     try {
-      const batch = writeBatch(db);
-      for (const admin of admins) {
-        const docRef = doc(db, path, admin.id);
-        batch.set(docRef, admin);
-      }
-      await batch.commit();
+      const { error } = await supabase
+        .from('admins')
+        .upsert(admins);
+      
+      if (error) throw error;
     } catch (err) {
-      handleFirestoreError(err, OperationType.WRITE, path);
+      console.error('Error saving admins:', err);
     }
   }
 }

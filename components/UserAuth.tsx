@@ -1,14 +1,7 @@
 
 import React, { useState } from 'react';
 import { User } from '../types';
-import { auth, db } from '../firebase';
-import { 
-  signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword,
-  signInWithPopup,
-  GoogleAuthProvider
-} from 'firebase/auth';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { supabase } from '../supabase';
 
 interface UserAuthProps {
   onAuth: (user: User) => void;
@@ -26,24 +19,18 @@ const UserAuth: React.FC<UserAuthProps> = ({ onAuth, onCancel }) => {
     setError('');
     setLoading(true);
     try {
-      const provider = new GoogleAuthProvider();
-      const userCredential = await signInWithPopup(auth, provider);
-      const userDoc = await getDoc(doc(db, 'users', userCredential.user.uid));
-      
-      let user: User;
-      if (userDoc.exists()) {
-        user = userDoc.data() as User;
-      } else {
-        user = {
-          id: userCredential.user.uid,
-          email: userCredential.user.email || '',
-          password: '',
-          balance: 0,
-          orders: []
-        };
-        await setDoc(doc(db, 'users', user.id), user);
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin,
+          skipBrowserRedirect: true
+        }
+      });
+
+      if (error) throw error;
+      if (data?.url) {
+        window.location.href = data.url;
       }
-      onAuth(user);
     } catch (err: any) {
       console.error('Google Auth Error:', err);
       setError(`Google Sign-In failed: ${err.message}`);
@@ -59,54 +46,62 @@ const UserAuth: React.FC<UserAuthProps> = ({ onAuth, onCancel }) => {
 
     try {
       if (isLogin) {
-        const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        const userDoc = await getDoc(doc(db, 'users', userCredential.user.uid));
-        if (userDoc.exists()) {
-          onAuth(userDoc.data() as User);
-        } else {
-          // Handle case where auth exists but firestore doc doesn't
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        if (error) throw error;
+        
+        if (data.user) {
+          const { data: userDoc, error: docError } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', data.user.id)
+            .single();
+          
+          if (userDoc) {
+            onAuth(userDoc as User);
+          } else {
+            const newUser: User = {
+              id: data.user.id,
+              email: data.user.email || '',
+              password: '',
+              balance: 0,
+              orders: []
+            };
+            await supabase.from('users').upsert(newUser);
+            onAuth(newUser);
+          }
+        }
+      } else {
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+        });
+        if (error) throw error;
+        
+        if (data.user) {
           const newUser: User = {
-            id: userCredential.user.uid,
-            email: userCredential.user.email || '',
-            password: '', // Don't store password in Firestore
+            id: data.user.id,
+            email: data.user.email || '',
+            password: '',
             balance: 0,
             orders: []
           };
-          await setDoc(doc(db, 'users', newUser.id), newUser);
+          await supabase.from('users').upsert(newUser);
           onAuth(newUser);
         }
-      } else {
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        const newUser: User = {
-          id: userCredential.user.uid,
-          email: userCredential.user.email || '',
-          password: '', // Don't store password in Firestore
-          balance: 0,
-          orders: []
-        };
-        await setDoc(doc(db, 'users', newUser.id), newUser);
-        onAuth(newUser);
       }
     } catch (err: any) {
       console.error('Auth Error:', err);
-      if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
-        setError('Invalid email or password.');
-      } else if (err.code === 'auth/email-already-in-use') {
-        setError('Email already registered.');
-      } else if (err.code === 'auth/weak-password') {
-        setError('Password should be at least 6 characters.');
-      } else if (err.code === 'auth/operation-not-allowed') {
-        setError('Email/Password sign-in is not enabled in the Firebase Console.');
-      } else {
-        setError(`Auth Error: ${err.message || 'Please try again.'}`);
-      }
+      setError(err.message || 'Authentication failed. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="max-w-md mx-auto my-20 p-8 bg-white dark:bg-slate-900 rounded-3xl border border-sky-100 dark:border-slate-800 shadow-xl transition-colors">
+    <div className="max-w-md mx-auto my-20 p-8 bg-white dark:bg-slate-900 rounded-3xl border border-skyblue-100 dark:border-slate-800 shadow-xl transition-colors">
       <div className="text-center mb-8">
         <h2 className="text-3xl font-black text-slate-800 dark:text-white">{isLogin ? 'Customer Login' : 'Create Account'}</h2>
         <p className="text-slate-500 dark:text-slate-400 mt-2">Access your NETTOOLZ portal</p>
@@ -120,7 +115,7 @@ const UserAuth: React.FC<UserAuthProps> = ({ onAuth, onCancel }) => {
             required 
             value={email}
             onChange={e => setEmail(e.target.value)}
-            className="w-full px-4 py-3 bg-sky-50 dark:bg-slate-800 border border-sky-100 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-sky-500 outline-none text-slate-900 dark:text-slate-100 placeholder-slate-400"
+            className="w-full px-4 py-3 bg-skyblue-50 dark:bg-slate-800 border border-skyblue-100 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-skyblue-500 outline-none text-slate-900 dark:text-slate-100 placeholder-slate-400"
             placeholder="name@example.com"
           />
         </div>
@@ -131,14 +126,14 @@ const UserAuth: React.FC<UserAuthProps> = ({ onAuth, onCancel }) => {
             required 
             value={password}
             onChange={e => setPassword(e.target.value)}
-            className="w-full px-4 py-3 bg-sky-50 dark:bg-slate-800 border border-sky-100 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-sky-500 outline-none text-slate-900 dark:text-slate-100 placeholder-slate-400"
+            className="w-full px-4 py-3 bg-skyblue-50 dark:bg-slate-800 border border-skyblue-100 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-skyblue-500 outline-none text-slate-900 dark:text-slate-100 placeholder-slate-400"
             placeholder="••••••••"
           />
         </div>
         
         {error && <p className="text-red-500 text-sm font-bold text-center bg-red-50 dark:bg-red-900/10 py-2 rounded-lg">{error}</p>}
 
-        <button type="submit" disabled={loading} className="w-full bg-sky-500 hover:bg-sky-600 text-white font-black py-4 rounded-xl shadow-lg transition-all active:scale-95 disabled:bg-slate-300">
+        <button type="submit" disabled={loading} className="w-full bg-skyblue-500 hover:bg-skyblue-600 text-white font-black py-4 rounded-xl shadow-lg transition-all active:scale-95 disabled:bg-slate-300">
           {loading ? 'Processing...' : (isLogin ? 'Login' : 'Sign Up')}
         </button>
 
@@ -167,7 +162,7 @@ const UserAuth: React.FC<UserAuthProps> = ({ onAuth, onCancel }) => {
         </button>
 
         <div className="flex flex-col space-y-4 items-center justify-center text-sm mt-6">
-          <button type="button" onClick={() => setIsLogin(!isLogin)} className="text-sky-500 dark:text-sky-400 font-bold hover:underline">
+          <button type="button" onClick={() => setIsLogin(!isLogin)} className="text-skyblue-500 dark:text-skyblue-400 font-bold hover:underline">
             {isLogin ? "Don't have an account? Sign up" : "Already have an account? Login"}
           </button>
           <button type="button" onClick={onCancel} className="text-slate-400 dark:text-slate-500 font-bold hover:text-slate-600 dark:hover:text-slate-300 transition-colors">Cancel</button>
